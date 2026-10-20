@@ -1,0 +1,11 @@
+{
+  "patient": {
+    "id": "P-101",
+    "name": "Jane Smith",
+    "condition": "Hypertension",
+    "priority": "High",
+    "notes": "Follow-up with cardiology in 2 weeks."
+  },
+  "status": "active",
+  "last_updated": "2026-10-20"
+}

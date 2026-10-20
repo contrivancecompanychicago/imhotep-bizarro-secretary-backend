@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+         xmlns:owl="http://www.w3.org/2002/07/owl#"
+         xmlns:med="http://example.org/medical#">
+  <owl:Ontology rdf:about="http://example.org/medical">
+    <owl:versionInfo>0.1.0</owl:versionInfo>
+  </owl:Ontology>
+
+  <med:Patient rdf:about="http://example.org/medical/Patient-101">
+    <med:hasName>Jane Smith</med:hasName>
+    <med:hasCondition>Hypertension</med:hasCondition>
+    <med:hasPriority>High</med:hasPriority>
+  </med:Patient>
+</rdf:RDF>

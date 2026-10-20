@@ -10,6 +10,14 @@ This repository is a fresh implementation created to serve as a clean product ba
 - Provide a versioned backend foundation for medical secretary workflows
 - Store operational knowledge and structured reference notes
 - Support future patient intake, summarization, and document workflow features
+- Maintain support for diverse document formats like CSV, JSON, OWL, PDF, and RDF
+
+## Supported document formats
+- CSV
+- JSON
+- OWL
+- PDF
+- RDF
 
 ## Attributed Source
 This repository draws inspiration from public reference work and research materials related to the DocScribe / IMHOTEP-Bizarros-DocScribe ecosystem, used as a knowledge base and adaptation reference. It is not a direct replacement or official fork of the upstream repository.
@@ -27,6 +35,8 @@ uvicorn app.main:app --reload
 ## API
 
 - GET /health
+- GET /api/v0/documents
+- POST /api/v0/documents/update
 - POST /api/v0/summary
 
 ## Version

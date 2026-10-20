@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+         xmlns:med="http://example.org/medical#">
+  <med:Patient rdf:about="http://example.org/medical/Patient-102">
+    <med:hasName>John Doe</med:hasName>
+    <med:hasCondition>Diabetes</med:hasCondition>
+    <med:hasPriority>Medium</med:hasPriority>
+  </med:Patient>
+</rdf:RDF>

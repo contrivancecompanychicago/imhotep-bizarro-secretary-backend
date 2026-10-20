@@ -1,0 +1,4 @@
+patient_id,first_name,last_name,condition,priority,notes
+P-101,Jane,Smith,Hypertension,High,"Follow-up with cardiology in 2 weeks."
+P-102,John,Doe,Diabetes,Medium,"Review A1C and medication adherence."
+P-103,Alina,Nguyen,Asthma,High,"Check inhaler usage and flare-up log."
