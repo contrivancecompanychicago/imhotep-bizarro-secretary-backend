@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>IMHOTEP Bizarros Medical Secretary</title>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        background: #f3f7f9;
+        margin: 0;
+        color: #1f2937;
+      }
+      .container {
+        max-width: 1100px;
+        margin: 0 auto;
+        padding: 32px 16px 64px;
+      }
+      .card {
+        background: #ffffff;
+        border-radius: 12px;
+        box-shadow: 0 4px 16px rgba(15, 23, 42, 0.08);
+        padding: 24px;
+        margin-bottom: 20px;
+      }
+      h1, h2 {
+        margin-top: 0;
+      }
+      .toolbar {
+        display: flex;
+        gap: 12px;
+        flex-wrap: wrap;
+        align-items: center;
+      }
+      input[type="file"] {
+        border: 1px solid #cbd5e1;
+        border-radius: 8px;
+        padding: 10px;
+        background: #f8fafc;
+      }
+      button {
+        border: none;
+        background: #1d4ed8;
+        color: #fff;
+        border-radius: 8px;
+        padding: 10px 16px;
+        cursor: pointer;
+      }
+      button.secondary {
+        background: #0f766e;
+      }
+      .status {
+        margin-top: 12px;
+        padding: 12px;
+        border-radius: 8px;
+        background: #eff6ff;
+        color: #1e3a8a;
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 12px;
+      }
+      th, td {
+        border: 1px solid #e5e7eb;
+        padding: 10px;
+        text-align: left;
+        vertical-align: top;
+      }
+      th {
+        background: #f8fafc;
+      }
+      .pill {
+        display: inline-block;
+        background: #ecfeff;
+        color: #115e59;
+        padding: 4px 8px;
+        border-radius: 999px;
+        margin-right: 6px;
+        font-size: 12px;
+      }
+      .doc-list {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin-top: 12px;
+      }
+      .export-row {
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+        margin-top: 12px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <div class="card">
+        <h1>IMHOTEP Bizarros Medical Secretary</h1>
+        <p>Front End Medical Secretary AI for Emergent APHID</p>
+        <div class="pill">CSV</div>
+        <div class="pill">JSON</div>
+        <div class="pill">OWL</div>
+        <div class="pill">PDF</div>
+        <div class="pill">RDF</div>
+      </div>
+
+      <div class="card">
+        <h2>Clinical document intake</h2>
+        <div class="toolbar">
+          <input id="file-input" type="file" accept=".csv,.json,.owl,.pdf,.rdf" />
+          <button id="upload-button">Upload document</button>
+          <button id="reload-button" class="secondary">Refresh document list</button>
+        </div>
+        <div id="document-status" class="status">Waiting for document upload.</div>
+      </div>
+
+      <div class="card">
+        <h2>Document library</h2>
+        <div id="document-list" class="doc-list"></div>
+      </div>
+
+      <div class="card">
+        <h2>Type 2 Diabetes patient graph</h2>
+        <p>Chicago patients in medically underserved communities</p>
+        <button id="load-patients-button" class="secondary">Load patient graph</button>
+        <div class="export-row">
+          <a href="/api/v0/exports/csv" target="_blank"><button type="button">Export CSV</button></a>
+          <a href="/api/v0/exports/json" target="_blank"><button type="button">Export JSON</button></a>
+          <a href="/api/v0/exports/rdf" target="_blank"><button type="button">Export RDF</button></a>
+        </div>
+        <table>
+          <thead>
+            <tr>
+              <th>Patient</th>
+              <th>Neighborhood</th>
+              <th>Condition</th>
+              <th>Care gap</th>
+            </tr>
+          </thead>
+          <tbody id="patient-body"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <script>
+      const documentStatus = document.getElementById('document-status');
+      const documentList = document.getElementById('document-list');
+      const patientBody = document.getElementById('patient-body');
+
+      async function loadDocuments() {
+        const response = await fetch('/api/v0/documents');
+        const data = await response.json();
+        documentList.innerHTML = '';
+
+        if (!data.documents || data.documents.length === 0) {
+          documentList.innerHTML = '<p>No documents available.</p>';
+          return;
+        }
+
+        for (const doc of data.documents) {
+          const item = document.createElement('div');
+          item.className = 'pill';
+          item.textContent = `${doc.filename} (${doc.format})`;
+          documentList.appendChild(item);
+        }
+      }
+
+      async function loadPatients() {
+        const response = await fetch('/api/v0/graph/patients?community=Chicago');
+        const data = await response.json();
+        patientBody.innerHTML = '';
+
+        if (!data.patients || data.patients.length === 0) {
+          patientBody.innerHTML = '<tr><td colspan="4">No qualifying patient records found.</td></tr>';
+          return;
+        }
+
+        for (const patient of data.patients) {
+          const row = document.createElement('tr');
+          row.innerHTML = `
+            <td>${patient.name}</td>
+            <td>${patient.neighborhood}</td>
+            <td>${patient.condition}</td>
+            <td>${patient.care_gap}</td>
+          `;
+          patientBody.appendChild(row);
+        }
+      }
+
+      document.getElementById('upload-button').addEventListener('click', async () => {
+        const fileInput = document.getElementById('file-input');
+        const file = fileInput.files[0];
+
+        if (!file) {
+          documentStatus.textContent = 'Please select a document first.';
+          return;
+        }
+
+        const formData = new FormData();
+        formData.append('file', file);
+
+        const response = await fetch('/api/v0/documents/update', {
+          method: 'POST',
+          body: formData,
+        });
+
+        const result = await response.json();
+        documentStatus.textContent = `Uploaded ${result.filename} (${result.format})`;
+        fileInput.value = '';
+        await loadDocuments();
+      });
+
+      document.getElementById('reload-button').addEventListener('click', loadDocuments);
+      document.getElementById('load-patients-button').addEventListener('click', loadPatients);
+      loadDocuments();
+      loadPatients();
+    </script>
+  </body>
+</html>
