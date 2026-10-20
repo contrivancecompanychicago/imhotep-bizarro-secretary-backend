@@ -1,0 +1,234 @@
+from __future__ import annotations
+
+import csv
+import io
+import json
+from pathlib import Path
+from typing import Any
+
+from rdflib import Graph, Literal, Namespace, RDF, URIRef
+
+
+class GraphStore:
+    def __init__(self, knowledge_dir: Path):
+        self.knowledge_dir = knowledge_dir
+        self.knowledge_dir.mkdir(parents=True, exist_ok=True)
+        self.graph = Graph()
+        self.med = Namespace("http://example.org/medical#")
+        self.seed_underserved_chicago_cohort()
+        self.load_default_sources()
+
+    def load_default_sources(self) -> None:
+        for path in sorted(self.knowledge_dir.glob("*")):
+            if path.suffix.lower() in {".rdf", ".owl"}:
+                try:
+                    self.graph.parse(str(path), format="xml")
+                except Exception:
+                    continue
+
+    def load_file(self, path: Path) -> None:
+        if path.suffix.lower() in {".rdf", ".owl"}:
+            try:
+                self.graph.parse(str(path), format="xml")
+            except Exception:
+                pass
+
+    def _add_patient_record(self, record: dict[str, str]) -> None:
+        patient = URIRef(f"http://example.org/medical/{record['id']}")
+        self.graph.add((patient, RDF.type, self.med.Patient))
+        self.graph.add((patient, self.med.hasName, Literal(record["name"])))
+        self.graph.add((patient, self.med.hasCondition, self.med.Type2Diabetes))
+        self.graph.add((patient, self.med.residesIn, Literal(record["neighborhood"])))
+        self.graph.add((patient, self.med.inCommunity, Literal(record["community"])))
+        self.graph.add((patient, self.med.hasCareGap, Literal(record["care_gap"])))
+        self.graph.add((patient, self.med.isMedicallyUnderserved, Literal("true")))
+        if "priority" in record:
+            self.graph.add((patient, self.med.hasPriority, Literal(record["priority"])))
+
+    def seed_underserved_chicago_cohort(self) -> None:
+        records = [
+            {
+                "id": "P-1001",
+                "name": "Maria Lopez",
+                "neighborhood": "West Garfield Park",
+                "community": "Chicago",
+                "care_gap": "Transportation barriers and limited specialist access",
+                "priority": "High",
+            },
+            {
+                "id": "P-1002",
+                "name": "Andre Williams",
+                "neighborhood": "Englewood",
+                "community": "Chicago",
+                "care_gap": "Food insecurity and inconsistent medication access",
+                "priority": "High",
+            },
+            {
+                "id": "P-1003",
+                "name": "Aisha Patel",
+                "neighborhood": "North Lawndale",
+                "community": "Chicago",
+                "care_gap": "Language barriers and delayed follow-up care",
+                "priority": "High",
+            },
+            {
+                "id": "P-1004",
+                "name": "Darnell Carter",
+                "neighborhood": "Auburn Gresham",
+                "community": "Chicago",
+                "care_gap": "Limited primary care availability",
+                "priority": "Medium",
+            },
+            {
+                "id": "P-1005",
+                "name": "Lena Brooks",
+                "neighborhood": "South Shore",
+                "community": "Chicago",
+                "care_gap": "Transportation barriers and irregular clinic attendance",
+                "priority": "Medium",
+            },
+            {
+                "id": "P-1006",
+                "name": "Victor Ramirez",
+                "neighborhood": "Humboldt Park",
+                "community": "Chicago",
+                "care_gap": "Insufficient nutrition counseling and medication affordability",
+                "priority": "High",
+            },
+            {
+                "id": "P-1007",
+                "name": "Nia King",
+                "neighborhood": "Roseland",
+                "community": "Chicago",
+                "care_gap": "Limited specialist referral pathways",
+                "priority": "Medium",
+            },
+            {
+                "id": "P-1008",
+                "name": "Marcus Hall",
+                "neighborhood": "Grand Boulevard",
+                "community": "Chicago",
+                "care_gap": "Inconsistent follow-up after screening and poor access to telehealth",
+                "priority": "High",
+            },
+        ]
+
+        for record in records:
+            self._add_patient_record(record)
+
+    def community_candidates(self) -> dict[str, Any]:
+        candidates = [
+            "West Garfield Park",
+            "Englewood",
+            "North Lawndale",
+            "Auburn Gresham",
+            "South Shore",
+            "Humboldt Park",
+            "Roseland",
+            "Grand Boulevard",
+        ]
+        return {
+            "city": "Chicago",
+            "count": len(candidates),
+            "candidates": candidates,
+            "description": "Candidate communities for focused Type 2 Diabetes and medically underserved outreach.",
+        }
+
+    def query_type2_diabetes_chicago_underserved(self, community: str | None = None) -> list[dict[str, Any]]:
+        base_query = """
+            PREFIX med: <http://example.org/medical#>
+            SELECT ?patient ?name ?neighborhood ?care_gap ?community WHERE {
+                ?patient a med:Patient .
+                ?patient med:hasName ?name .
+                ?patient med:hasCondition med:Type2Diabetes .
+                ?patient med:residesIn ?neighborhood .
+                ?patient med:hasCareGap ?care_gap .
+                ?patient med:isMedicallyUnderserved "true" .
+                ?patient med:inCommunity ?community .
+            }
+            ORDER BY ?name
+        """
+
+        if community and community.lower() != "all":
+            base_query = f"""
+                PREFIX med: <http://example.org/medical#>
+                SELECT ?patient ?name ?neighborhood ?care_gap ?community WHERE {{
+                    ?patient a med:Patient .
+                    ?patient med:hasName ?name .
+                    ?patient med:hasCondition med:Type2Diabetes .
+                    ?patient med:residesIn ?neighborhood .
+                    ?patient med:hasCareGap ?care_gap .
+                    ?patient med:isMedicallyUnderserved "true" .
+                    ?patient med:inCommunity ?community .
+                    FILTER(str(?community) = \"{community}\")
+                }}
+                ORDER BY ?name
+            """
+
+        results = []
+        for row in self.graph.query(base_query):
+            patient, name, neighborhood, care_gap, community_value = row
+            patient_uri = str(patient)
+            results.append(
+                {
+                    "patient_id": patient_uri.rsplit("/", 1)[-1],
+                    "name": str(name),
+                    "neighborhood": str(neighborhood),
+                    "care_gap": str(care_gap),
+                    "condition": "Type 2 Diabetes",
+                    "community": str(community_value),
+                }
+            )
+        return results
+
+    def summary(self) -> dict[str, Any]:
+        query = """
+            PREFIX med: <http://example.org/medical#>
+            SELECT (COUNT(DISTINCT ?patient) AS ?patient_count)
+                   (COUNT(DISTINCT ?neighborhood) AS ?community_count)
+            WHERE {
+                ?patient a med:Patient .
+                ?patient med:hasCondition med:Type2Diabetes .
+                ?patient med:isMedicallyUnderserved "true" .
+                ?patient med:residesIn ?neighborhood .
+            }
+        """
+
+        row = next(iter(self.graph.query(query)), None)
+        if row is None:
+            return {"patient_count": 0, "community_count": 0, "city": "Chicago"}
+
+        patient_count, community_count = row
+        return {
+            "patient_count": int(patient_count),
+            "community_count": int(community_count),
+            "city": "Chicago",
+            "population_focus": "Type 2 Diabetes patients in medically underserved Chicago communities",
+            "candidate_communities": self.community_candidates()["candidates"],
+        }
+
+    def export_json(self) -> str:
+        records = self.query_type2_diabetes_chicago_underserved(community="Chicago")
+        return json.dumps({"city": "Chicago", "patients": records}, indent=2)
+
+    def export_csv(self) -> str:
+        buffer = io.StringIO()
+        fieldnames = ["patient_id", "name", "neighborhood", "community", "condition", "care_gap"]
+        writer = csv.DictWriter(buffer, fieldnames=fieldnames)
+        writer.writeheader()
+        for patient in self.query_type2_diabetes_chicago_underserved(community="Chicago"):
+            writer.writerow({
+                "patient_id": patient["patient_id"],
+                "name": patient["name"],
+                "neighborhood": patient["neighborhood"],
+                "community": patient["community"],
+                "condition": patient["condition"],
+                "care_gap": patient["care_gap"],
+            })
+        return buffer.getvalue()
+
+    def export_rdf(self) -> str:
+        return self.graph.serialize(format="xml")
+
+
+__all__ = ["GraphStore"]
