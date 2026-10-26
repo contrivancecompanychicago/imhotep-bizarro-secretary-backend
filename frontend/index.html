@@ -1,107 +1,73 @@
-<!DOCTYPE html>
-<html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>IMHOTEP Bizarros Medical Secretary</title>
-    <link rel="stylesheet" href="styles.css" />
-  </head>
-  <body>
-    <div class="container">
-      <header class="topbar">
-        <h1>IMHOTEP Bizarros</h1>
-        <p>Virtual Lab & Clinic Assistant</p>
-      </header>
+from fastapi import APIRouter, Depends, HTTPException
+from sqlalchemy.orm import Session
 
-      <section class="card">
-        <h2>1) Staff Login</h2>
-        <form id="loginForm">
-          <div class="grid">
-            <input id="loginEmail" type="email" placeholder="Email" required />
-            <input id="loginPassword" type="password" placeholder="Password" required />
-          </div>
-          <button type="submit">Login</button>
-        </form>
-      </section>
+from app.auth import get_current_user
+from app.database import get_db
+from app.models import Patient, User
+from app.schemas import PatientCreate, PatientUpdate
 
-      <section class="card">
-        <h2>2) Create Provider</h2>
-        <form id="providerForm">
-          <div class="grid">
-            <input id="providerName" type="text" placeholder="Provider name" required />
-            <input id="providerSpecialty" type="text" placeholder="Specialty" />
-            <input id="providerEmail" type="email" placeholder="Provider email" />
-          </div>
-          <button type="submit">Save Provider</button>
-        </form>
-      </section>
+router = APIRouter(prefix="/patients", tags=["patients"])
 
-      <section class="card">
-        <h2>3) Patient Intake</h2>
-        <form id="patientForm">
-          <div class="grid">
-            <input id="firstName" type="text" placeholder="First name" required />
-            <input id="lastName" type="text" placeholder="Last name" required />
-            <input id="dob" type="date" placeholder="Date of birth" />
-            <input id="sex" type="text" placeholder="Sex" />
-            <input id="phone" type="tel" placeholder="Phone" />
-            <input id="email" type="email" placeholder="Email" />
-          </div>
-          <button type="submit">Create Patient</button>
-        </form>
-      </section>
 
-      <section class="card">
-        <h2>4) Schedule Appointment</h2>
-        <form id="appointmentForm">
-          <div class="grid">
-            <input id="patientId" type="number" placeholder="Patient ID" required />
-            <input id="providerId" type="number" placeholder="Provider ID" required />
-            <input id="scheduledAt" type="datetime-local" required />
-            <input id="reason" type="text" placeholder="Reason for visit" required />
-            <textarea id="appointmentNotes" placeholder="Notes"></textarea>
-          </div>
-          <button type="submit">Book Appointment</button>
-        </form>
-      </section>
+@router.get("/")
+def get_patients(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    patients = db.query(Patient).all()
+    return {"patients": patients}
 
-      <section class="card">
-        <h2>5) Add Clinical Note</h2>
-        <form id="noteForm">
-          <div class="grid">
-            <input id="notePatientId" type="number" placeholder="Patient ID" required />
-            <input id="noteTitle" type="text" placeholder="Note title" required />
-          </div>
-          <textarea id="noteContent" rows="5" placeholder="Clinical note content..." required></textarea>
-          <button type="submit">Save Note</button>
-        </form>
-      </section>
 
-      <section class="card">
-        <h2>6) Search Notes / Documents</h2>
-        <form id="searchForm">
-          <div class="search-row">
-            <input id="searchQuery" type="text" placeholder="Search symptoms, notes, documents..." required />
-            <button type="submit">Search</button>
-          </div>
-        </form>
-        <div id="searchResults" class="results"></div>
-      </section>
+@router.post("/")
+def create_patient(
+    patient: PatientCreate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    new_patient = Patient(
+        first_name=patient.first_name,
+        last_name=patient.last_name,
+        dob=patient.dob,
+        sex=patient.sex,
+        phone=patient.phone,
+        email=patient.email,
+        symptoms=patient.symptoms,
+        triage_status=patient.triage_status,
+        consent_received=patient.consent_received,
+        consent_text=patient.consent_text,
+    )
+    db.add(new_patient)
+    db.commit()
+    db.refresh(new_patient)
+    return {"message": "patient created", "patient_id": new_patient.id}
 
-      <section class="card">
-        <h2>7) Current Data</h2>
-        <div class="button-row">
-          <button id="loadPatientsBtn" type="button">Load Patients</button>
-          <button id="loadProvidersBtn" type="button">Load Providers</button>
-          <button id="loadAppointmentsBtn" type="button">Load Appointments</button>
-        </div>
 
-        <div id="patientsList" class="list-box"></div>
-        <div id="providersList" class="list-box"></div>
-        <div id="appointmentsList" class="list-box"></div>
-      </section>
-    </div>
+@router.get("/{patient_id}")
+def get_patient(
+    patient_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    patient = db.query(Patient).filter(Patient.id == patient_id).first()
+    if not patient:
+        raise HTTPException(status_code=404, detail="patient not found")
+    return patient
 
-    <script src="app.js"></script>
-  </body>
-</html>
+
+@router.patch("/{patient_id}")
+def update_patient(
+    patient_id: int,
+    patient_update: PatientUpdate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    patient = db.query(Patient).filter(Patient.id == patient_id).first()
+    if not patient:
+        raise HTTPException(status_code=404, detail="patient not found")
+
+    for key, value in patient_update.model_dump(exclude_unset=True).items():
+        setattr(patient, key, value)
+
+    db.commit()
+    db.refresh(patient)
+    return patient

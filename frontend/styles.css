@@ -1,110 +1,279 @@
-* {
-  box-sizing: border-box;
+const API_BASE = "http://localhost:3000";
+
+let token = localStorage.getItem("imhotep_token") || "";
+
+function setToken(newToken) {
+  token = newToken;
+  localStorage.setItem("imhotep_token", newToken);
 }
 
-body {
-  margin: 0;
-  font-family: Arial, sans-serif;
-  background: #f4f7fb;
-  color: #1d2433;
+function api(path, options = {}) {
+  const headers = {
+    "Content-Type": "application/json",
+    ...(options.headers || {}),
+  };
+
+  if (token) {
+    headers["Authorization"] = `Bearer ${token}`;
+  }
+
+  return fetch(API_BASE + path, {
+    ...options,
+    headers,
+  }).then(async (res) => {
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      throw new Error(data.detail || "Request failed");
+    }
+    return data;
+  });
 }
 
-.container {
-  max-width: 1100px;
-  margin: 40px auto;
-  padding: 20px;
+document.getElementById("loginForm").addEventListener("submit", async (e) => {
+  e.preventDefault();
+
+  const email = document.getElementById("loginEmail").value;
+  const password = document.getElementById("loginPassword").value;
+
+  try {
+    const res = await api("/auth/login", {
+      method: "POST",
+      body: JSON.stringify({ email, password }),
+    });
+
+    setToken(res.access_token);
+    alert("Login successful");
+  } catch (err) {
+    alert(err.message);
+  }
+});
+
+document.getElementById("providerForm").addEventListener("submit", async (e) => {
+  e.preventDefault();
+
+  const payload = {
+    name: document.getElementById("providerName").value,
+    specialty: document.getElementById("providerSpecialty").value,
+    email: document.getElementById("providerEmail").value,
+  };
+
+  try {
+    await api("/providers/", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    });
+
+    alert("Provider saved");
+    document.getElementById("providerForm").reset();
+    loadProviders();
+  } catch (err) {
+    alert(err.message);
+  }
+});
+
+document.getElementById("patientForm").addEventListener("submit", async (e) => {
+  e.preventDefault();
+
+  const payload = {
+    first_name: document.getElementById("firstName").value,
+    last_name: document.getElementById("lastName").value,
+    dob: document.getElementById("dob").value,
+    sex: document.getElementById("sex").value,
+    phone: document.getElementById("phone").value,
+    email: document.getElementById("email").value,
+    symptoms: document.getElementById("symptoms").value,
+    triage_status: document.getElementById("triageStatus").value,
+    consent_received: document.getElementById("consentReceived").checked,
+    consent_text: document.getElementById("consentText").value,
+  };
+
+  try {
+    const res = await api("/patients/", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    });
+
+    alert(`Patient created: ID ${res.patient_id}`);
+    document.getElementById("patientForm").reset();
+    loadPatients();
+  } catch (err) {
+    alert(err.message);
+  }
+});
+
+document.getElementById("appointmentForm").addEventListener("submit", async (e) => {
+  e.preventDefault();
+
+  const payload = {
+    patient_id: Number(document.getElementById("patientId").value),
+    provider_id: Number(document.getElementById("providerId").value),
+    scheduled_at: document.getElementById("scheduledAt").value,
+    reason: document.getElementById("reason").value,
+    notes: document.getElementById("appointmentNotes").value,
+  };
+
+  try {
+    await api("/appointments/", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    });
+
+    alert("Appointment booked");
+    document.getElementById("appointmentForm").reset();
+    loadAppointments();
+  } catch (err) {
+    alert(err.message);
+  }
+});
+
+document.getElementById("noteForm").addEventListener("submit", async (e) => {
+  e.preventDefault();
+
+  const payload = {
+    patient_id: Number(document.getElementById("notePatientId").value),
+    title: document.getElementById("noteTitle").value,
+    content: document.getElementById("noteContent").value,
+  };
+
+  try {
+    await api("/notes/", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    });
+
+    alert("Note saved");
+    document.getElementById("noteForm").reset();
+  } catch (err) {
+    alert(err.message);
+  }
+});
+
+document.getElementById("searchForm").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const q = document.getElementById("searchQuery").value;
+
+  try {
+    const res = await api(`/search/?query=${encodeURIComponent(q)}`);
+    const results = res.results || [];
+    const resultsBox = document.getElementById("searchResults");
+
+    if (!results.length) {
+      resultsBox.innerHTML = "<div class='result-item'>No matching records found.</div>";
+      return;
+    }
+
+    resultsBox.innerHTML = results.hits?.hits
+      ? results.hits.hits
+          .map(
+            (hit) => `
+              <div class="result-item">
+                <strong>${hit._source?.title || "Clinical record"}</strong><br />
+                ${hit._source?.content || JSON.stringify(hit._source)}
+              </div>
+            `
+          )
+          .join("")
+      : results.map(
+          (item) => `
+            <div class="result-item">
+              <strong>${item._source?.title || "Clinical record"}</strong><br />
+              ${item._source?.content || JSON.stringify(item._source)}
+            </div>
+          `
+        ).join("");
+  } catch (err) {
+    alert(err.message);
+  }
+});
+
+async function loadPatients() {
+  try {
+    const data = await api("/patients/");
+    const list = data.patients || [];
+    const box = document.getElementById("patientsList");
+
+    box.innerHTML = list.length
+      ? list
+          .map(
+            (p) => `
+              <div class="list-item">
+                <strong>${p.first_name} ${p.last_name}</strong><br />
+                ID: ${p.id}<br />
+                DOB: ${p.dob || "N/A"}<br />
+                Symptoms: ${p.symptoms || "N/A"}<br />
+                Triage: ${p.triage_status || "pending"}<br />
+                Consent: ${p.consent_received ? "Yes" : "No"}<br />
+                Email: ${p.email || "N/A"}
+              </div>
+            `
+          )
+          .join("")
+      : "<div class='list-item'>No patients found.</div>";
+  } catch (err) {
+    console.error(err);
+    const box = document.getElementById("patientsList");
+    box.innerHTML = "<div class='list-item'>Error loading patients</div>";
+  }
 }
 
-.topbar {
-  background: linear-gradient(135deg, #0d6efd, #0a3d91);
-  color: white;
-  padding: 24px 20px;
-  border-radius: 14px;
-  margin-bottom: 20px;
+async function loadProviders() {
+  try {
+    const data = await api("/providers/");
+    const list = data.providers || [];
+    const box = document.getElementById("providersList");
+
+    box.innerHTML = list.length
+      ? list
+          .map(
+            (p) => `
+              <div class="list-item">
+                <strong>${p.name}</strong><br />
+                Specialty: ${p.specialty || "N/A"}<br />
+                Email: ${p.email || "N/A"}
+              </div>
+            `
+          )
+          .join("")
+      : "<div class='list-item'>No providers found.</div>";
+  } catch (err) {
+    console.error(err);
+    const box = document.getElementById("providersList");
+    box.innerHTML = "<div class='list-item'>Error loading providers</div>";
+  }
 }
 
-.topbar h1 {
-  margin: 0 0 6px 0;
-  font-size: 2rem;
+async function loadAppointments() {
+  try {
+    const data = await api("/appointments/");
+    const list = data.appointments || [];
+    const box = document.getElementById("appointmentsList");
+
+    box.innerHTML = list.length
+      ? list
+          .map(
+            (a) => `
+              <div class="list-item">
+                <strong>Appointment</strong><br />
+                Patient ID: ${a.patient_id}<br />
+                Provider ID: ${a.provider_id}<br />
+                Scheduled: ${a.scheduled_at}<br />
+                Reason: ${a.reason}
+              </div>
+            `
+          )
+          .join("")
+      : "<div class='list-item'>No appointments found.</div>";
+  } catch (err) {
+    console.error(err);
+    const box = document.getElementById("appointmentsList");
+    box.innerHTML = "<div class='list-item'>Error loading appointments</div>";
+  }
 }
 
-.topbar p {
-  margin: 0;
-  opacity: 0.9;
-}
+document.getElementById("loadPatientsBtn").addEventListener("click", loadPatients);
+document.getElementById("loadProvidersBtn").addEventListener("click", loadProviders);
+document.getElementById("loadAppointmentsBtn").addEventListener("click", loadAppointments);
 
-.card {
-  background: white;
-  border-radius: 12px;
-  padding: 20px;
-  margin-bottom: 20px;
-  box-shadow: 0 3px 12px rgba(0, 0, 0, 0.08);
-}
-
-.grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-  gap: 12px;
-}
-
-input, textarea, button {
-  width: 100%;
-  padding: 12px 14px;
-  border-radius: 8px;
-  border: 1px solid #d8deea;
-  font-size: 1rem;
-}
-
-input, textarea {
-  background: #fff;
-}
-
-button {
-  background: #0d6efd;
-  color: white;
-  cursor: pointer;
-  border: none;
-  font-weight: bold;
-}
-
-button:hover {
-  background: #0a5bd8;
-}
-
-.search-row {
-  display: flex;
-  gap: 10px;
-}
-
-.list-box, .results {
-  margin-top: 18px;
-  background: #f8fafc;
-  border: 1px solid #e5eaf3;
-  border-radius: 10px;
-  padding: 12px;
-  min-height: 80px;
-}
-
-.result-item, .list-item {
-  background: white;
-  border: 1px solid #e9edf6;
-  border-radius: 8px;
-  padding: 10px;
-  margin-bottom: 8px;
-}
-
-h2 {
-  margin-top: 0;
-}
-
-textarea {
-  resize: vertical;
-  min-height: 100px;
-}
-
-.button-row {
-  display: flex;
-  gap: 10px;
-  flex-wrap: wrap;
-  margin-bottom: 12px;
-}
+loadPatients();
+loadProviders();
+loadAppointments();

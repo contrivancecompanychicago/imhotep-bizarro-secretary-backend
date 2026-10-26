@@ -1,49 +1,87 @@
 from datetime import datetime
 
-from pydantic import BaseModel
+from sqlalchemy import Boolean, Column, DateTime, ForeignKey, Integer, String, Text
+from sqlalchemy.orm import relationship
+
+from app.database import Base
 
 
-class UserCreate(BaseModel):
-    email: str
-    password: str
-    full_name: str
-    role: str = "staff"
+class User(Base):
+    __tablename__ = "users"
+
+    id = Column(Integer, primary_key=True, index=True)
+    email = Column(String, unique=True, index=True, nullable=False)
+    password_hash = Column(String, nullable=False)
+    full_name = Column(String, nullable=False)
+    role = Column(String, default="staff")
+    created_at = Column(DateTime, default=datetime.utcnow)
 
 
-class UserLogin(BaseModel):
-    email: str
-    password: str
+class Patient(Base):
+    __tablename__ = "patients"
+
+    id = Column(Integer, primary_key=True, index=True)
+    first_name = Column(String, nullable=False)
+    last_name = Column(String, nullable=False)
+    dob = Column(String, nullable=True)
+    sex = Column(String, nullable=True)
+    phone = Column(String, nullable=True)
+    email = Column(String, nullable=True)
+    symptoms = Column(Text, nullable=True)
+    triage_status = Column(String, default="pending", nullable=True)
+    consent_received = Column(Boolean, default=False)
+    consent_text = Column(Text, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    appointments = relationship("Appointment", back_populates="patient")
+    notes = relationship("ClinicalNote", back_populates="patient")
 
 
-class PatientCreate(BaseModel):
-    first_name: str
-    last_name: str
-    dob: str | None = None
-    sex: str | None = None
-    phone: str | None = None
-    email: str | None = None
+class Provider(Base):
+    __tablename__ = "providers"
+
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String, nullable=False)
+    specialty = Column(String, nullable=True)
+    email = Column(String, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    appointments = relationship("Appointment", back_populates="provider")
 
 
-class ProviderCreate(BaseModel):
-    name: str
-    specialty: str | None = None
-    email: str | None = None
+class Appointment(Base):
+    __tablename__ = "appointments"
+
+    id = Column(Integer, primary_key=True, index=True)
+    patient_id = Column(Integer, ForeignKey("patients.id"), nullable=False)
+    provider_id = Column(Integer, ForeignKey("providers.id"), nullable=False)
+    scheduled_at = Column(DateTime, nullable=False)
+    reason = Column(String, nullable=False)
+    status = Column(String, default="scheduled")
+    notes = Column(Text, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    patient = relationship("Patient", back_populates="appointments")
+    provider = relationship("Provider", back_populates="appointments")
 
 
-class AppointmentCreate(BaseModel):
-    patient_id: int
-    provider_id: int
-    scheduled_at: datetime
-    reason: str
-    notes: str | None = None
+class ClinicalNote(Base):
+    __tablename__ = "clinical_notes"
+
+    id = Column(Integer, primary_key=True, index=True)
+    patient_id = Column(Integer, ForeignKey("patients.id"), nullable=False)
+    title = Column(String, nullable=False)
+    content = Column(Text, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    patient = relationship("Patient", back_populates="notes")
 
 
-class ClinicalNoteCreate(BaseModel):
-    patient_id: int
-    title: str
-    content: str
+class IntakeForm(Base):
+    __tablename__ = "intake_forms"
 
-
-class IntakeFormCreate(BaseModel):
-    patient_id: int
-    form_data: str
+    id = Column(Integer, primary_key=True, index=True)
+    patient_id = Column(Integer, ForeignKey("patients.id"), nullable=False)
+    form_data = Column(Text, nullable=False)
+    submitted_at = Column(DateTime, default=datetime.utcnow)
+    status = Column(String, default="pending")
