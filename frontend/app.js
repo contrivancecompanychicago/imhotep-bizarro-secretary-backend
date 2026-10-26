@@ -1,0 +1,272 @@
+const API_BASE = "http://localhost:3000";
+
+let token = localStorage.getItem("imhotep_token") || "";
+
+function setToken(newToken) {
+  token = newToken;
+  localStorage.setItem("imhotep_token", newToken);
+}
+
+function api(path, options = {}) {
+  const headers = {
+    "Content-Type": "application/json",
+    ...(options.headers || {}),
+  };
+
+  if (token) {
+    headers["Authorization"] = `Bearer ${token}`;
+  }
+
+  return fetch(API_BASE + path, {
+    ...options,
+    headers,
+  }).then(async (res) => {
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      throw new Error(data.detail || "Request failed");
+    }
+    return data;
+  });
+}
+
+document.getElementById("loginForm").addEventListener("submit", async (e) => {
+  e.preventDefault();
+
+  const email = document.getElementById("loginEmail").value;
+  const password = document.getElementById("loginPassword").value;
+
+  try {
+    const res = await api("/auth/login", {
+      method: "POST",
+      body: JSON.stringify({ email, password }),
+    });
+
+    setToken(res.access_token);
+    alert("Login successful");
+  } catch (err) {
+    alert(err.message);
+  }
+});
+
+document.getElementById("providerForm").addEventListener("submit", async (e) => {
+  e.preventDefault();
+
+  const payload = {
+    name: document.getElementById("providerName").value,
+    specialty: document.getElementById("providerSpecialty").value,
+    email: document.getElementById("providerEmail").value,
+  };
+
+  try {
+    await api("/providers/", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    });
+
+    alert("Provider saved");
+    document.getElementById("providerForm").reset();
+    loadProviders();
+  } catch (err) {
+    alert(err.message);
+  }
+});
+
+document.getElementById("patientForm").addEventListener("submit", async (e) => {
+  e.preventDefault();
+
+  const payload = {
+    first_name: document.getElementById("firstName").value,
+    last_name: document.getElementById("lastName").value,
+    dob: document.getElementById("dob").value,
+    sex: document.getElementById("sex").value,
+    phone: document.getElementById("phone").value,
+    email: document.getElementById("email").value,
+  };
+
+  try {
+    const res = await api("/patients/", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    });
+
+    alert(`Patient created: ID ${res.patient_id}`);
+    document.getElementById("patientForm").reset();
+    loadPatients();
+  } catch (err) {
+    alert(err.message);
+  }
+});
+
+document.getElementById("appointmentForm").addEventListener("submit", async (e) => {
+  e.preventDefault();
+
+  const payload = {
+    patient_id: Number(document.getElementById("patientId").value),
+    provider_id: Number(document.getElementById("providerId").value),
+    scheduled_at: document.getElementById("scheduledAt").value,
+    reason: document.getElementById("reason").value,
+    notes: document.getElementById("appointmentNotes").value,
+  };
+
+  try {
+    await api("/appointments/", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    });
+
+    alert("Appointment booked");
+    document.getElementById("appointmentForm").reset();
+    loadAppointments();
+  } catch (err) {
+    alert(err.message);
+  }
+});
+
+document.getElementById("noteForm").addEventListener("submit", async (e) => {
+  e.preventDefault();
+
+  const payload = {
+    patient_id: Number(document.getElementById("notePatientId").value),
+    title: document.getElementById("noteTitle").value,
+    content: document.getElementById("noteContent").value,
+  };
+
+  try {
+    await api("/notes/", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    });
+
+    alert("Note saved");
+    document.getElementById("noteForm").reset();
+  } catch (err) {
+    alert(err.message);
+  }
+});
+
+document.getElementById("searchForm").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const q = document.getElementById("searchQuery").value;
+
+  try {
+    const res = await api(`/search/?query=${encodeURIComponent(q)}`);
+    const results = res.results || [];
+    const resultsBox = document.getElementById("searchResults");
+
+    if (!results.length) {
+      resultsBox.innerHTML = "<div class='result-item'>No matching records found.</div>";
+      return;
+    }
+
+    resultsBox.innerHTML = results.hits?.hits
+      ? results.hits.hits
+          .map(
+            (hit) => `
+              <div class="result-item">
+                <strong>${hit._source?.title || "Clinical record"}</strong><br />
+                ${hit._source?.content || JSON.stringify(hit._source)}
+              </div>
+            `
+          )
+          .join("")
+      : results.map(
+          (item) => `
+            <div class="result-item">
+              <strong>${item._source?.title || "Clinical record"}</strong><br />
+              ${item._source?.content || JSON.stringify(item._source)}
+            </div>
+          `
+        ).join("");
+  } catch (err) {
+    alert(err.message);
+  }
+});
+
+async function loadPatients() {
+  try {
+    const data = await api("/patients/");
+    const list = data.patients || [];
+    const box = document.getElementById("patientsList");
+
+    box.innerHTML = list.length
+      ? list
+          .map(
+            (p) => `
+              <div class="list-item">
+                <strong>${p.first_name} ${p.last_name}</strong><br />
+                ID: ${p.id}<br />
+                DOB: ${p.dob || "N/A"}<br />
+                Email: ${p.email || "N/A"}
+              </div>
+            `
+          )
+          .join("")
+      : "<div class='list-item'>No patients found.</div>";
+  } catch (err) {
+    console.error(err);
+    const box = document.getElementById("patientsList");
+    box.innerHTML = "<div class='list-item'>Error loading patients</div>";
+  }
+}
+
+async function loadProviders() {
+  try {
+    const data = await api("/providers/");
+    const list = data.providers || [];
+    const box = document.getElementById("providersList");
+
+    box.innerHTML = list.length
+      ? list
+          .map(
+            (p) => `
+              <div class="list-item">
+                <strong>${p.name}</strong><br />
+                Specialty: ${p.specialty || "N/A"}<br />
+                Email: ${p.email || "N/A"}
+              </div>
+            `
+          )
+          .join("")
+      : "<div class='list-item'>No providers found.</div>";
+  } catch (err) {
+    console.error(err);
+    const box = document.getElementById("providersList");
+    box.innerHTML = "<div class='list-item'>Error loading providers</div>";
+  }
+}
+
+async function loadAppointments() {
+  try {
+    const data = await api("/appointments/");
+    const list = data.appointments || [];
+    const box = document.getElementById("appointmentsList");
+
+    box.innerHTML = list.length
+      ? list
+          .map(
+            (a) => `
+              <div class="list-item">
+                <strong>Appointment</strong><br />
+                Patient ID: ${a.patient_id}<br />
+                Provider ID: ${a.provider_id}<br />
+                Scheduled: ${a.scheduled_at}<br />
+                Reason: ${a.reason}
+              </div>
+            `
+          )
+          .join("")
+      : "<div class='list-item'>No appointments found.</div>";
+  } catch (err) {
+    console.error(err);
+    const box = document.getElementById("appointmentsList");
+    box.innerHTML = "<div class='list-item'>Error loading appointments</div>";
+  }
+}
+
+document.getElementById("loadPatientsBtn").addEventListener("click", loadPatients);
+document.getElementById("loadProvidersBtn").addEventListener("click", loadProviders);
+document.getElementById("loadAppointmentsBtn").addEventListener("click", loadAppointments);
+
+loadPatients();
+loadProviders();
+loadAppointments();

@@ -1,168 +1,34 @@
-from __future__ import annotations
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 
-import csv
-import json
-from pathlib import Path
-from typing import Any
+from app.database import Base, engine
+from app.routers import appointments, auth, notes, patients, providers, search
 
-from fastapi import FastAPI, File, HTTPException, UploadFile
-from pydantic import BaseModel
+app = FastAPI(title="IMHOTEP Bizarros Medical Secretary")
 
-from app.config import APP_NAME, VERSION
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
-app = FastAPI(title=APP_NAME, version=VERSION)
+Base.metadata.create_all(bind=engine)
 
-DOCUMENT_ROOT = Path(__file__).resolve().parents[2] / "data" / "documents"
-DOCUMENT_ROOT.mkdir(parents=True, exist_ok=True)
-SUPPORTED_EXTENSIONS = {".csv", ".json", ".owl", ".pdf", ".rdf"}
-
-
-class IntakeRequest(BaseModel):
-    patient_name: str | None = None
-    notes: str = ""
-    specialty: str | None = None
-
-
-class SummaryResponse(BaseModel):
-    status: str
-    message: str
-    version: str
+app.include_router(auth.router)
+app.include_router(patients.router)
+app.include_router(providers.router)
+app.include_router(appointments.router)
+app.include_router(notes.router)
+app.include_router(search.router)
 
 
-class DocumentParseResult(BaseModel):
-    filename: str
-    format: str
-    size_bytes: int
-    preview: str
-    metadata: dict[str, Any]
-
-
-def list_supported_formats() -> list[str]:
-    return sorted(ext.lstrip(".") for ext in SUPPORTED_EXTENSIONS)
-
-
-def summarize_text_for_preview(value: Any, max_length: int = 300) -> str:
-    text = json.dumps(value, ensure_ascii=False, default=str)
-    return text[:max_length] if len(text) > max_length else text
-
-
-def parse_document(path: Path) -> dict[str, Any]:
-    suffix = path.suffix.lower()
-    format_name = suffix.lstrip(".") if suffix else "unknown"
-
-    if suffix == ".csv":
-        with path.open("r", encoding="utf-8", newline="") as handle:
-            reader = csv.DictReader(handle)
-            rows = list(reader)
-        return {
-            "format": format_name,
-            "rows": len(rows),
-            "columns": list(rows[0].keys()) if rows else [],
-            "preview": rows[:3],
-        }
-
-    if suffix == ".json":
-        with path.open("r", encoding="utf-8") as handle:
-            payload = json.load(handle)
-        return {
-            "format": format_name,
-            "type": type(payload).__name__,
-            "preview": summarize_text_for_preview(payload),
-        }
-
-    if suffix in {".owl", ".rdf"}:
-        try:
-            text = path.read_text(encoding="utf-8", errors="ignore")
-            snippets = text[:500]
-            return {
-                "format": format_name,
-                "status": "parsed_as_text",
-                "preview": snippets,
-            }
-        except Exception:
-            return {"format": format_name, "status": "stored_raw", "preview": "Unable to parse semantic document."}
-
-    if suffix == ".pdf":
-        try:
-            from pypdf import PdfReader
-
-            reader = PdfReader(str(path))
-            pages = []
-            for page in reader.pages:
-                pages.append(page.extract_text() or "")
-            preview = "\n\n".join(pages[:3])[:500]
-            return {
-                "format": format_name,
-                "page_count": len(reader.pages),
-                "preview": preview,
-            }
-        except Exception:
-            return {
-                "format": format_name,
-                "status": "stored_raw",
-                "preview": "PDF content stored for later inspection; text extraction could not be completed.",
-            }
-
-    return {"format": format_name, "status": "stored_raw", "preview": "Document processed and stored."}
+@app.get("/")
+def root():
+    return {"message": "IMHOTEP Bizarros Medical Secretary API is running"}
 
 
 @app.get("/health")
 def health():
-    return {"status": "ok", "service": APP_NAME, "version": VERSION}
-
-
-@app.get("/api/v0/documents")
-def list_documents():
-    files = []
-    for entry in sorted(DOCUMENT_ROOT.iterdir()):
-        if entry.is_file() and entry.suffix.lower() in SUPPORTED_EXTENSIONS:
-            files.append({
-                "filename": entry.name,
-                "format": entry.suffix.lower().lstrip("."),
-                "size_bytes": entry.stat().st_size,
-                "metadata": parse_document(entry),
-            })
-    return {
-        "count": len(files),
-        "formats": list_supported_formats(),
-        "documents": files,
-    }
-
-
-@app.post("/api/v0/documents/update")
-async def update_document(file: UploadFile = File(...)):
-    if not file.filename:
-        raise HTTPException(status_code=400, detail="A filename is required.")
-
-    suffix = Path(file.filename).suffix.lower()
-    if suffix not in SUPPORTED_EXTENSIONS:
-        raise HTTPException(
-            status_code=400,
-            detail=f"Unsupported file type: {suffix}. Supported formats: {list_supported_formats()}",
-        )
-
-    target_dir = DOCUMENT_ROOT / "uploads"
-    target_dir.mkdir(parents=True, exist_ok=True)
-
-    target_path = target_dir / file.filename
-    content = await file.read()
-    with target_path.open("wb") as handle:
-        handle.write(content)
-
-    metadata = parse_document(target_path)
-    return {
-        "filename": target_path.name,
-        "format": suffix.lstrip("."),
-        "size_bytes": target_path.stat().st_size,
-        "path": str(target_path),
-        "metadata": metadata,
-    }
-
-
-@app.post("/api/v0/summary", response_model=SummaryResponse)
-def summarize_case(payload: IntakeRequest):
-    return {
-        "status": "success",
-        "message": f"Clinical summary ready for {payload.patient_name or 'patient'}",
-        "version": VERSION,
-    }
+    return {"status": "ok"}
