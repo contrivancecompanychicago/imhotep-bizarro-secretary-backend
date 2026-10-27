@@ -2,7 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.database import Base, engine
-from app.routers import appointments, auth, notes, patients, providers, search
+from app.routers import appointments, assistant, auth, notes, patients, providers, search
 
 app = FastAPI(title="IMHOTEP Bizarros Medical Secretary")
 
@@ -22,6 +22,7 @@ app.include_router(providers.router)
 app.include_router(appointments.router)
 app.include_router(notes.router)
 app.include_router(search.router)
+app.include_router(assistant.router)
 
 
 @app.get("/")
