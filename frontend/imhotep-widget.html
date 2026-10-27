@@ -1,0 +1,317 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>IMHOTEP Assistant</title>
+    <style>
+      :root {
+        --brand: #1f5e7a;
+        --brand-strong: #163c4d;
+        --brand-soft: #eaf6fb;
+        --ink: #1a1a1a;
+        --muted: #5f6c72;
+        --border: #dfeaf0;
+        --panel: #ffffff;
+        --shadow: 0 12px 30px rgba(22, 60, 77, 0.12);
+        --success: #2d8f6b;
+        --danger: #b94a48;
+      }
+
+      * { box-sizing: border-box; }
+
+      body {
+        margin: 0;
+        font-family: Arial, Helvetica, sans-serif;
+        background: linear-gradient(180deg, #f5fbff 0%, #edf5f8 100%);
+        color: var(--ink);
+      }
+
+      .imhotep-widget {
+        width: min(100%, 440px);
+        margin: 24px auto;
+        background: var(--panel);
+        border: 1px solid var(--border);
+        border-radius: 18px;
+        box-shadow: var(--shadow);
+        overflow: hidden;
+      }
+
+      .imhotep-header {
+        background: linear-gradient(135deg, var(--brand) 0%, var(--brand-strong) 100%);
+        color: #fff;
+        padding: 18px 20px;
+      }
+
+      .imhotep-header h3 {
+        margin: 0;
+        font-size: 1.1rem;
+        font-weight: 700;
+      }
+
+      .imhotep-header p {
+        margin: 6px 0 0;
+        opacity: 0.9;
+        font-size: 0.82rem;
+      }
+
+      .imhotep-body {
+        padding: 16px 18px 18px;
+      }
+
+      .imhotep-fields {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 10px;
+        margin-bottom: 12px;
+      }
+
+      .imhotep-field {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+      }
+
+      .imhotep-field.full {
+        grid-column: 1 / -1;
+      }
+
+      .imhotep-field label {
+        font-size: 0.75rem;
+        color: var(--muted);
+        font-weight: 700;
+      }
+
+      .imhotep-field input,
+      .imhotep-field select {
+        width: 100%;
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        padding: 10px 12px;
+        font-size: 0.95rem;
+        background: #fff;
+      }
+
+      .imhotep-type {
+        display: flex;
+        gap: 10px;
+        margin: 12px 0;
+        flex-wrap: wrap;
+      }
+
+      .imhotep-type label {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 0.82rem;
+        color: var(--muted);
+      }
+
+      .imhotep-chat {
+        border: 1px solid var(--border);
+        background: var(--brand-soft);
+        border-radius: 12px;
+        padding: 12px;
+        height: 220px;
+        overflow-y: auto;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        margin-bottom: 12px;
+      }
+
+      .bubble {
+        max-width: 82%;
+        padding: 10px 12px;
+        border-radius: 12px;
+        line-height: 1.45;
+        font-size: 0.92rem;
+      }
+
+      .bubble.user {
+        align-self: flex-end;
+        background: var(--brand);
+        color: #fff;
+        border-bottom-right-radius: 4px;
+      }
+
+      .bubble.bot {
+        align-self: flex-start;
+        background: #fff;
+        color: var(--ink);
+        border: 1px solid var(--border);
+        border-bottom-left-radius: 4px;
+      }
+
+      .imhotep-form {
+        display: flex;
+        gap: 8px;
+      }
+
+      .imhotep-form input {
+        flex: 1;
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        padding: 10px 12px;
+        font-size: 0.95rem;
+      }
+
+      .imhotep-form button {
+        border: none;
+        border-radius: 10px;
+        background: var(--brand);
+        color: #fff;
+        padding: 10px 16px;
+        font-size: 0.92rem;
+        font-weight: 700;
+        cursor: pointer;
+      }
+
+      .imhotep-form button:hover {
+        background: var(--brand-strong);
+      }
+
+      .status {
+        margin-top: 8px;
+        min-height: 18px;
+        font-size: 0.75rem;
+        color: var(--muted);
+      }
+
+      .status.error {
+        color: var(--danger);
+      }
+
+      .status.success {
+        color: var(--success);
+      }
+
+      @media (max-width: 520px) {
+        .imhotep-fields {
+          grid-template-columns: 1fr;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="imhotep-widget" id="imhotep-widget">
+      <div class="imhotep-header">
+        <h3>IMHOTEP Assistant</h3>
+        <p>DEEP Human Families onboarding support</p>
+      </div>
+
+      <div class="imhotep-body">
+        <div class="imhotep-fields">
+          <div class="imhotep-field">
+            <label for="userName">Name</label>
+            <input id="userName" type="text" placeholder="Your name" />
+          </div>
+
+          <div class="imhotep-field">
+            <label for="userEmail">Email</label>
+            <input id="userEmail" type="email" placeholder="you@example.com" />
+          </div>
+        </div>
+
+        <div class="imhotep-type">
+          <label>
+            <input type="radio" name="userType" value="new" checked />
+            New user
+          </label>
+          <label>
+            <input type="radio" name="userType" value="existing" />
+            Returning user
+          </label>
+        </div>
+
+        <div class="imhotep-chat" id="chatBox" aria-live="polite">
+          <div class="bubble bot">Hello! I’m IMHOTEP. I can help with onboarding and next steps for the DEEP Human Families experience.</div>
+        </div>
+
+        <form class="imhotep-form" id="chatForm">
+          <input id="chatInput" type="text" placeholder="Ask IMHOTEP a question..." required />
+          <button type="submit">Send</button>
+        </form>
+        <div class="status" id="status"></div>
+      </div>
+    </div>
+
+    <script>
+      // Replace this with your deployed backend URL, for example:
+      // https://your-replit-domain.repl.co
+      const BACKEND_URL = "https://your-backend-url";
+
+      const chatBox = document.getElementById("chatBox");
+      const chatForm = document.getElementById("chatForm");
+      const chatInput = document.getElementById("chatInput");
+      const statusBox = document.getElementById("status");
+      const userNameInput = document.getElementById("userName");
+      const userEmailInput = document.getElementById("userEmail");
+
+      function setStatus(message, type = "") {
+        statusBox.textContent = message;
+        statusBox.className = "status" + (type ? ` ${type}` : "");
+      }
+
+      function addBubble(text, sender = "bot") {
+        const bubble = document.createElement("div");
+        bubble.className = `bubble ${sender}`;
+        bubble.textContent = text;
+        chatBox.appendChild(bubble);
+        chatBox.scrollTop = chatBox.scrollHeight;
+      }
+
+      function getUserType() {
+        const selected = document.querySelector('input[name="userType"]:checked');
+        return selected ? selected.value : "new";
+      }
+
+      chatForm.addEventListener("submit", async function (event) {
+        event.preventDefault();
+
+        const message = chatInput.value.trim();
+        if (!message) return;
+
+        const userName = userNameInput.value.trim();
+        const userEmail = userEmailInput.value.trim();
+        const userType = getUserType();
+
+        addBubble(message, "user");
+        chatInput.value = "";
+        setStatus("Connecting to IMHOTEP...", "");
+
+        try {
+          if (!BACKEND_URL || BACKEND_URL.includes("your-backend-url")) {
+            throw new Error("Replace BACKEND_URL with your deployed backend URL before using this widget.");
+          }
+
+          const response = await fetch(`${BACKEND_URL}/assistant/chat`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json"
+            },
+            body: JSON.stringify({
+              message,
+              user_type: userType,
+              user_name: userName || "Guest",
+              user_email: userEmail || null,
+              site_url: "https://make-deep-human-families-healthy.erichilarysmithsr.chatgpt.site"
+            })
+          });
+
+          if (!response.ok) {
+            const errorData = await response.json().catch(() => ({}));
+            throw new Error(errorData.detail || "Unable to reach IMHOTEP right now.");
+          }
+
+          const data = await response.json();
+          addBubble(data.reply || "I’m here to help.", "bot");
+          setStatus("IMHOTEP replied successfully.", "success");
+        } catch (error) {
+          addBubble(error.message || "I couldn’t reach the assistant right now. Please try again in a moment.", "bot");
+          setStatus(error.message || "Connection error.", "error");
+        }
+      });
+    </script>
+  </body>
+</html>
