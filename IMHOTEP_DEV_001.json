@@ -1,0 +1,298 @@
+{
+  "experiment_id": "IMHOTEP-DEV-001",
+  "stage": "development",
+  "created_utc": "2026-10-28T13:01:39.229456+00:00",
+  "baseline_source_commit": "0630117f4228f82ba39c2ae4ea5dacd9dcaadba0",
+  "dataset_sha256": "ef4b6af4b4c6034a6a82eaa8d6fcff28e57f017aa927dce0c967b335775cab3c",
+  "limitation": "Hand-authored development examples; not held-out evaluation.",
+  "dataset": {
+    "documents": [
+      {
+        "id": "DEV-001-N1",
+        "case_id": "DEV-001",
+        "text": "Fictional case DEV-001 requests an afternoon appointment."
+      },
+      {
+        "id": "DEV-002-N1",
+        "case_id": "DEV-002",
+        "text": "Fictional case DEV-002 requests a morning appointment."
+      },
+      {
+        "id": "DEV-003-N1",
+        "case_id": "DEV-003",
+        "text": "Fictional case DEV-003 needs interpreter assistance."
+      },
+      {
+        "id": "DEV-004-N1",
+        "case_id": "DEV-004",
+        "text": "Fictional case DEV-004 requests transportation assistance."
+      },
+      {
+        "id": "DEV-005-N1",
+        "case_id": "DEV-005",
+        "text": "Fictional case DEV-005 requests a telephone callback."
+      }
+    ],
+    "questions": [
+      {
+        "query_id": "DQ-001",
+        "query": "afternoon appointment",
+        "relevant_ids": [
+          "DEV-001-N1"
+        ]
+      },
+      {
+        "query_id": "DQ-002",
+        "query": "visit before noon",
+        "relevant_ids": [
+          "DEV-002-N1"
+        ]
+      },
+      {
+        "query_id": "DQ-003",
+        "query": "interpreter assistance",
+        "relevant_ids": [
+          "DEV-003-N1"
+        ]
+      },
+      {
+        "query_id": "DQ-004",
+        "query": "transportation assistance",
+        "relevant_ids": [
+          "DEV-004-N1"
+        ]
+      },
+      {
+        "query_id": "DQ-005",
+        "query": "telephone callback",
+        "relevant_ids": [
+          "DEV-005-N1"
+        ]
+      },
+      {
+        "query_id": "DQ-006",
+        "query": "evening appointment",
+        "relevant_ids": []
+      }
+    ]
+  },
+  "results": [
+    {
+      "method": "Original baseline",
+      "query_id": "DQ-001",
+      "query": "afternoon appointment",
+      "relevant_ids": [
+        "DEV-001-N1"
+      ],
+      "retrieved_ids": [
+        "DEV-001-N1",
+        "DEV-002-N1"
+      ],
+      "correct": true
+    },
+    {
+      "method": "Original baseline",
+      "query_id": "DQ-002",
+      "query": "visit before noon",
+      "relevant_ids": [
+        "DEV-002-N1"
+      ],
+      "retrieved_ids": [],
+      "correct": false
+    },
+    {
+      "method": "Original baseline",
+      "query_id": "DQ-003",
+      "query": "interpreter assistance",
+      "relevant_ids": [
+        "DEV-003-N1"
+      ],
+      "retrieved_ids": [
+        "DEV-003-N1",
+        "DEV-004-N1"
+      ],
+      "correct": true
+    },
+    {
+      "method": "Original baseline",
+      "query_id": "DQ-004",
+      "query": "transportation assistance",
+      "relevant_ids": [
+        "DEV-004-N1"
+      ],
+      "retrieved_ids": [
+        "DEV-004-N1",
+        "DEV-003-N1"
+      ],
+      "correct": true
+    },
+    {
+      "method": "Original baseline",
+      "query_id": "DQ-005",
+      "query": "telephone callback",
+      "relevant_ids": [
+        "DEV-005-N1"
+      ],
+      "retrieved_ids": [
+        "DEV-005-N1"
+      ],
+      "correct": true
+    },
+    {
+      "method": "Original baseline",
+      "query_id": "DQ-006",
+      "query": "evening appointment",
+      "relevant_ids": [],
+      "retrieved_ids": [
+        "DEV-001-N1",
+        "DEV-002-N1"
+      ],
+      "correct": false
+    },
+    {
+      "method": "Expansion v1",
+      "query_id": "DQ-001",
+      "query": "afternoon appointment",
+      "relevant_ids": [
+        "DEV-001-N1"
+      ],
+      "retrieved_ids": [
+        "DEV-001-N1",
+        "DEV-002-N1"
+      ],
+      "correct": true
+    },
+    {
+      "method": "Expansion v1",
+      "query_id": "DQ-002",
+      "query": "visit before noon",
+      "relevant_ids": [
+        "DEV-002-N1"
+      ],
+      "retrieved_ids": [
+        "DEV-001-N1",
+        "DEV-002-N1"
+      ],
+      "correct": false
+    },
+    {
+      "method": "Expansion v1",
+      "query_id": "DQ-003",
+      "query": "interpreter assistance",
+      "relevant_ids": [
+        "DEV-003-N1"
+      ],
+      "retrieved_ids": [
+        "DEV-003-N1",
+        "DEV-004-N1"
+      ],
+      "correct": true
+    },
+    {
+      "method": "Expansion v1",
+      "query_id": "DQ-004",
+      "query": "transportation assistance",
+      "relevant_ids": [
+        "DEV-004-N1"
+      ],
+      "retrieved_ids": [
+        "DEV-004-N1",
+        "DEV-003-N1"
+      ],
+      "correct": true
+    },
+    {
+      "method": "Expansion v1",
+      "query_id": "DQ-005",
+      "query": "telephone callback",
+      "relevant_ids": [
+        "DEV-005-N1"
+      ],
+      "retrieved_ids": [
+        "DEV-005-N1"
+      ],
+      "correct": true
+    },
+    {
+      "method": "Expansion v1",
+      "query_id": "DQ-006",
+      "query": "evening appointment",
+      "relevant_ids": [],
+      "retrieved_ids": [
+        "DEV-001-N1",
+        "DEV-002-N1"
+      ],
+      "correct": false
+    },
+    {
+      "method": "Expansion + time filter",
+      "query_id": "DQ-001",
+      "query": "afternoon appointment",
+      "relevant_ids": [
+        "DEV-001-N1"
+      ],
+      "retrieved_ids": [
+        "DEV-001-N1"
+      ],
+      "correct": true
+    },
+    {
+      "method": "Expansion + time filter",
+      "query_id": "DQ-002",
+      "query": "visit before noon",
+      "relevant_ids": [
+        "DEV-002-N1"
+      ],
+      "retrieved_ids": [
+        "DEV-002-N1"
+      ],
+      "correct": true
+    },
+    {
+      "method": "Expansion + time filter",
+      "query_id": "DQ-003",
+      "query": "interpreter assistance",
+      "relevant_ids": [
+        "DEV-003-N1"
+      ],
+      "retrieved_ids": [
+        "DEV-003-N1",
+        "DEV-004-N1"
+      ],
+      "correct": true
+    },
+    {
+      "method": "Expansion + time filter",
+      "query_id": "DQ-004",
+      "query": "transportation assistance",
+      "relevant_ids": [
+        "DEV-004-N1"
+      ],
+      "retrieved_ids": [
+        "DEV-004-N1",
+        "DEV-003-N1"
+      ],
+      "correct": true
+    },
+    {
+      "method": "Expansion + time filter",
+      "query_id": "DQ-005",
+      "query": "telephone callback",
+      "relevant_ids": [
+        "DEV-005-N1"
+      ],
+      "retrieved_ids": [
+        "DEV-005-N1"
+      ],
+      "correct": true
+    },
+    {
+      "method": "Expansion + time filter",
+      "query_id": "DQ-006",
+      "query": "evening appointment",
+      "relevant_ids": [],
+      "retrieved_ids": [],
+      "correct": true
+    }
+  ]
+}
