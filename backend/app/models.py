@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from sqlalchemy import Column, DateTime, ForeignKey, Integer, String, Text
+from sqlalchemy import Column, DateTime, Float, ForeignKey, Integer, String, Text
 from sqlalchemy.orm import relationship
 
 from app.database import Base
@@ -31,6 +31,27 @@ class Patient(Base):
 
     appointments = relationship("Appointment", back_populates="patient")
     notes = relationship("ClinicalNote", back_populates="patient")
+    face_embedding = relationship("PatientFaceEmbedding", back_populates="patient", uselist=False)
+
+
+class PatientFaceEmbedding(Base):
+    __tablename__ = "patient_face_embeddings"
+
+    id = Column(Integer, primary_key=True, index=True)
+    patient_id = Column(Integer, ForeignKey("patients.id"), nullable=False, unique=True)
+    embedding_1 = Column(Float, nullable=False)
+    embedding_2 = Column(Float, nullable=False)
+    embedding_3 = Column(Float, nullable=False)
+    embedding_4 = Column(Float, nullable=False)
+    embedding_5 = Column(Float, nullable=False)
+    embedding_6 = Column(Float, nullable=False)
+    embedding_7 = Column(Float, nullable=False)
+    embedding_8 = Column(Float, nullable=False)
+    source = Column(String, default="gaussian-synthetic")
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    patient = relationship("Patient", back_populates="face_embedding")
 
 
 class Provider(Base):
