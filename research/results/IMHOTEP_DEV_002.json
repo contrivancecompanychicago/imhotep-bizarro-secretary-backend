@@ -1,0 +1,143 @@
+{
+  "experiment_id": "IMHOTEP-DEV-002",
+  "parent_experiment_id": "IMHOTEP-DEV-001",
+  "stage": "development",
+  "label": "Fictional wording checks; not a held-out evaluation",
+  "methods_changed": false,
+  "results": [
+    {
+      "method": "Original baseline",
+      "query_id": "CH-001",
+      "query": "appointment in the morning",
+      "relevant_ids": [
+        "DEV-002-N1"
+      ],
+      "retrieved_ids": [
+        "DEV-002-N1",
+        "DEV-001-N1"
+      ],
+      "correct": true
+    },
+    {
+      "method": "Original baseline",
+      "query_id": "CH-002",
+      "query": "help with transportation",
+      "relevant_ids": [
+        "DEV-004-N1"
+      ],
+      "retrieved_ids": [
+        "DEV-004-N1"
+      ],
+      "correct": true
+    },
+    {
+      "method": "Original baseline",
+      "query_id": "CH-003",
+      "query": "call me by phone",
+      "relevant_ids": [
+        "DEV-005-N1"
+      ],
+      "retrieved_ids": [],
+      "correct": false
+    },
+    {
+      "method": "Original baseline",
+      "query_id": "CH-004",
+      "query": "appointment in the evening",
+      "relevant_ids": [],
+      "retrieved_ids": [
+        "DEV-001-N1",
+        "DEV-002-N1"
+      ],
+      "correct": false
+    },
+    {
+      "method": "Expansion v1",
+      "query_id": "CH-001",
+      "query": "appointment in the morning",
+      "relevant_ids": [
+        "DEV-002-N1"
+      ],
+      "retrieved_ids": [
+        "DEV-002-N1",
+        "DEV-001-N1"
+      ],
+      "correct": true
+    },
+    {
+      "method": "Expansion v1",
+      "query_id": "CH-002",
+      "query": "help with transportation",
+      "relevant_ids": [
+        "DEV-004-N1"
+      ],
+      "retrieved_ids": [
+        "DEV-004-N1"
+      ],
+      "correct": true
+    },
+    {
+      "method": "Expansion v1",
+      "query_id": "CH-003",
+      "query": "call me by phone",
+      "relevant_ids": [
+        "DEV-005-N1"
+      ],
+      "retrieved_ids": [],
+      "correct": false
+    },
+    {
+      "method": "Expansion v1",
+      "query_id": "CH-004",
+      "query": "appointment in the evening",
+      "relevant_ids": [],
+      "retrieved_ids": [
+        "DEV-001-N1",
+        "DEV-002-N1"
+      ],
+      "correct": false
+    },
+    {
+      "method": "Expansion + time filter",
+      "query_id": "CH-001",
+      "query": "appointment in the morning",
+      "relevant_ids": [
+        "DEV-002-N1"
+      ],
+      "retrieved_ids": [
+        "DEV-002-N1"
+      ],
+      "correct": true
+    },
+    {
+      "method": "Expansion + time filter",
+      "query_id": "CH-002",
+      "query": "help with transportation",
+      "relevant_ids": [
+        "DEV-004-N1"
+      ],
+      "retrieved_ids": [
+        "DEV-004-N1"
+      ],
+      "correct": true
+    },
+    {
+      "method": "Expansion + time filter",
+      "query_id": "CH-003",
+      "query": "call me by phone",
+      "relevant_ids": [
+        "DEV-005-N1"
+      ],
+      "retrieved_ids": [],
+      "correct": false
+    },
+    {
+      "method": "Expansion + time filter",
+      "query_id": "CH-004",
+      "query": "appointment in the evening",
+      "relevant_ids": [],
+      "retrieved_ids": [],
+      "correct": true
+    }
+  ]
+}

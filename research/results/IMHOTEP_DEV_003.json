@@ -1,0 +1,60 @@
+{
+  "experiment_id": "IMHOTEP-DEV-003",
+  "parent_experiment_id": "IMHOTEP-DEV-002",
+  "stage": "development",
+  "label": "Rule tuned on observed failure; not held-out evaluation",
+  "rule_added": {
+    "pattern": "\\bcall me by phone\\b",
+    "replacement": "telephone callback"
+  },
+  "results": [
+    {
+      "method": "Expansion v2 + time filter",
+      "query_id": "CH-001",
+      "query": "appointment in the morning",
+      "searched": "appointment in the morning",
+      "relevant_ids": [
+        "DEV-002-N1"
+      ],
+      "retrieved_ids": [
+        "DEV-002-N1"
+      ],
+      "correct": true
+    },
+    {
+      "method": "Expansion v2 + time filter",
+      "query_id": "CH-002",
+      "query": "help with transportation",
+      "searched": "help with transportation",
+      "relevant_ids": [
+        "DEV-004-N1"
+      ],
+      "retrieved_ids": [
+        "DEV-004-N1"
+      ],
+      "correct": true
+    },
+    {
+      "method": "Expansion v2 + time filter",
+      "query_id": "CH-003",
+      "query": "call me by phone",
+      "searched": "telephone callback",
+      "relevant_ids": [
+        "DEV-005-N1"
+      ],
+      "retrieved_ids": [
+        "DEV-005-N1"
+      ],
+      "correct": true
+    },
+    {
+      "method": "Expansion v2 + time filter",
+      "query_id": "CH-004",
+      "query": "appointment in the evening",
+      "searched": "appointment in the evening",
+      "relevant_ids": [],
+      "retrieved_ids": [],
+      "correct": true
+    }
+  ]
+}
