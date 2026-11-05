@@ -1,0 +1,60 @@
+{
+  "experiment_id": "IMHOTEP-DEV-004",
+  "parent_experiment_id": "IMHOTEP-DEV-003",
+  "stage": "development",
+  "label": "Fictional phone wording and negation checks; not held-out",
+  "methods_changed": false,
+  "results": [
+    {
+      "method": "Expansion v2 + time filter",
+      "query_id": "PC-001",
+      "query": "please call me by phone",
+      "searched": "please telephone callback",
+      "relevant_ids": [
+        "DEV-005-N1"
+      ],
+      "retrieved_ids": [
+        "DEV-005-N1"
+      ],
+      "correct": true
+    },
+    {
+      "method": "Expansion v2 + time filter",
+      "query_id": "PC-002",
+      "query": "please telephone me",
+      "searched": "please telephone me",
+      "relevant_ids": [
+        "DEV-005-N1"
+      ],
+      "retrieved_ids": [
+        "DEV-005-N1"
+      ],
+      "correct": true
+    },
+    {
+      "method": "Expansion v2 + time filter",
+      "query_id": "PC-003",
+      "query": "give me a call",
+      "searched": "give me a call",
+      "relevant_ids": [
+        "DEV-005-N1"
+      ],
+      "retrieved_ids": [
+        "DEV-002-N1",
+        "DEV-005-N1"
+      ],
+      "correct": false
+    },
+    {
+      "method": "Expansion v2 + time filter",
+      "query_id": "PC-004",
+      "query": "do not call me by phone",
+      "searched": "do not telephone callback",
+      "relevant_ids": [],
+      "retrieved_ids": [
+        "DEV-005-N1"
+      ],
+      "correct": false
+    }
+  ]
+}

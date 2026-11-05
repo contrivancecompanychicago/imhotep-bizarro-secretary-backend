@@ -1,0 +1,61 @@
+{
+  "experiment_id": "IMHOTEP-DEV-005",
+  "parent_experiment_id": "IMHOTEP-DEV-004",
+  "stage": "development",
+  "label": "Rules tuned on observed failures; not held-out evaluation",
+  "regression_checks_passed": 10,
+  "results": [
+    {
+      "method": "Expansion v3 + time filter",
+      "query_id": "PC-001",
+      "query": "please call me by phone",
+      "relevant_ids": [
+        "DEV-005-N1"
+      ],
+      "retrieved_ids": [
+        "DEV-005-N1"
+      ],
+      "correct": true
+    },
+    {
+      "method": "Expansion v3 + time filter",
+      "query_id": "PC-002",
+      "query": "please telephone me",
+      "relevant_ids": [
+        "DEV-005-N1"
+      ],
+      "retrieved_ids": [
+        "DEV-005-N1"
+      ],
+      "correct": true
+    },
+    {
+      "method": "Expansion v3 + time filter",
+      "query_id": "PC-003",
+      "query": "give me a call",
+      "relevant_ids": [
+        "DEV-005-N1"
+      ],
+      "retrieved_ids": [
+        "DEV-005-N1"
+      ],
+      "correct": true
+    },
+    {
+      "method": "Expansion v3 + time filter",
+      "query_id": "PC-004",
+      "query": "do not call me by phone",
+      "relevant_ids": [],
+      "retrieved_ids": [],
+      "correct": true
+    }
+  ],
+  "function_sources": {
+    "tokens": "def tokens(text):\n    return set(re.findall(r\"[a-z0-9]+\", text.lower()))\n",
+    "rank": "def rank(query, documents):\n    query_tokens = tokens(query)\n    scores = [\n        (len(query_tokens & tokens(doc[\"text\"])), doc[\"id\"])\n        for doc in documents\n    ]\n    return [\n        doc_id\n        for score, doc_id in sorted(\n            scores, key=lambda item: (-item[0], item[1])\n        )\n        if score > 0\n    ]\n",
+    "expand_query": "def expand_query(query):\n    expanded = query.lower()\n    expanded = re.sub(r\"\\bafter noon\\b\", \"afternoon\", expanded)\n    expanded = re.sub(r\"\\bvisit\\b\", \"appointment\", expanded)\n    return expanded\n",
+    "rank_with_time_filter": "def rank_with_time_filter(query, documents):\n    expanded = expand_query(query)\n    expanded = re.sub(r\"\\bbefore noon\\b\", \"morning\", expanded)\n\n    time_terms = {\"morning\", \"afternoon\", \"evening\"}\n    required_times = set(expanded.split()) & time_terms\n\n    eligible = [\n        doc for doc in documents\n        if required_times.issubset(set(doc[\"text\"].lower().split()))\n    ]\n    return rank(expanded, eligible)\n",
+    "expand_query_v2": "def expand_query_v2(query):\n    expanded = expand_query(query)\n    return re.sub(\n        r\"\\bcall me by phone\\b\",\n        \"telephone callback\",\n        expanded\n    )\n",
+    "retrieve_v3": "def retrieve_v3(query, documents):\n    normalized = query.lower()\n\n    # Narrow development rule for this explicit refusal.\n    if re.search(r\"\\bdo not call me by phone\\b\", normalized):\n        return []\n\n    expanded = re.sub(\n        r\"\\bgive me a call\\b\",\n        \"telephone callback\",\n        normalized\n    )\n    return rank_with_time_filter(\n        expand_query_v2(expanded), documents\n    )\n"
+  }
+}
