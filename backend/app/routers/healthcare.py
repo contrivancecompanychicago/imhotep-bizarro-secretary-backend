@@ -30,24 +30,60 @@ class HealthcareAnalyzeResponse(BaseModel):
     relationships: list[HealthcareRelationship]
 
 
+class HealthcareCodeCandidate(BaseModel):
+    code_system: str
+    code: str
+    display: str
+    evidence: list[str]
+    review_required: bool
+
+
+class UnavailableCodeSystem(BaseModel):
+    code_system: str
+    reason: str
+
+
+class HealthcareCodeSuggestResponse(BaseModel):
+    focus: str
+    code_candidates: list[HealthcareCodeCandidate]
+    unavailable_code_systems: list[UnavailableCodeSystem]
+    coding_review_required: bool
+    notice: str
+
+
+def _healthcare_service() -> HealthcareNLPService:
+    return HealthcareNLPService(
+        project_id=settings.google_cloud_project,
+        location=settings.google_cloud_location,
+        timeout_seconds=settings.healthcare_api_timeout_seconds,
+    )
+
+
+def _analyze(text: str, operation: str) -> dict:
+    normalized_text = text.strip()
+    if not normalized_text:
+        raise HTTPException(status_code=422, detail="text must not be blank")
+
+    service = _healthcare_service()
+    try:
+        return getattr(service, operation)(normalized_text)
+    except HealthcareNLPError as exc:
+        raise HTTPException(status_code=exc.status_code, detail=str(exc)) from exc
+
+
 @router.post("/analyze", response_model=HealthcareAnalyzeResponse)
 def analyze_clinical_text(
     payload: HealthcareAnalyzeRequest,
     current_user: User = Depends(get_current_user),
 ) -> HealthcareAnalyzeResponse:
-    """Extract clinical entities and links; this is not a coding or diagnosis service."""
-    text = payload.text.strip()
-    if not text:
-        raise HTTPException(status_code=422, detail="text must not be blank")
+    """Extract clinical entities and links; not a coding or diagnosis service."""
+    return HealthcareAnalyzeResponse(**_analyze(payload.text, "analyze"))
 
-    service = HealthcareNLPService(
-        project_id=settings.google_cloud_project,
-        location=settings.google_cloud_location,
-        timeout_seconds=settings.healthcare_api_timeout_seconds,
-    )
-    try:
-        result = service.analyze(text)
-    except HealthcareNLPError as exc:
-        raise HTTPException(status_code=exc.status_code, detail=str(exc)) from exc
 
-    return HealthcareAnalyzeResponse(**result)
+@router.post("/code-suggest", response_model=HealthcareCodeSuggestResponse)
+def suggest_clinical_codes(
+    payload: HealthcareAnalyzeRequest,
+    current_user: User = Depends(get_current_user),
+) -> HealthcareCodeSuggestResponse:
+    """Return extraction-linked code candidates for coder review, not diagnoses."""
+    return HealthcareCodeSuggestResponse(**_analyze(payload.text, "suggest_codes"))

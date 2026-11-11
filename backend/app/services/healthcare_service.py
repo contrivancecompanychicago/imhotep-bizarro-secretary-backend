@@ -19,11 +19,13 @@ class HealthcareNLPError(RuntimeError):
 class HealthcareNLPService:
     """Client for Google Cloud Healthcare Natural Language entity analysis.
 
-    The service returns extracted mentions and relationships only. It does not
-    generate diagnoses, treatment advice, or medical-code assignments.
+    Coding candidates are surfaced only when the upstream response explicitly
+    links a mention to an ICD-10-CM vocabulary code. This service does not
+    infer codes, generate CPT codes, or make clinical decisions.
     """
 
     API_BASE_URL = "https://healthcare.googleapis.com/v1"
+    ICD10_VOCABULARIES = {"ICD10CM", "ICD-10-CM"}
 
     def __init__(
         self,
@@ -149,6 +151,83 @@ class HealthcareNLPService:
             )
 
         return {"entities": entities, "relationships": relationships}
+
+    def suggest_codes(self, text: str) -> dict[str, Any]:
+        """Surface only ICD-10-CM codes explicitly linked by Healthcare NLP.
+
+        CPT is not among the configured NLP vocabularies and is deliberately
+        reported as unavailable instead of guessed from a narrative.
+        """
+        response = self.analyze_entities(text)
+        mentions = response.get("entityMentions", [])
+        vocabulary_entities = response.get("entities", [])
+        if not isinstance(mentions, list):
+            mentions = []
+        if not isinstance(vocabulary_entities, list):
+            vocabulary_entities = []
+
+        evidence_by_entity: dict[str, list[str]] = {}
+        for mention in mentions:
+            if not isinstance(mention, dict) or mention.get("entityId") is None:
+                continue
+            mention_text = mention.get("text")
+            content = mention_text.get("content") if isinstance(mention_text, dict) else None
+            if isinstance(content, str) and content.strip():
+                evidence_by_entity.setdefault(str(mention["entityId"]), []).append(content.strip())
+
+        candidates: list[dict[str, Any]] = []
+        seen: set[tuple[str, str]] = set()
+        for entity in vocabulary_entities:
+            if not isinstance(entity, dict) or entity.get("entityId") is None:
+                continue
+            entity_id = str(entity["entityId"])
+            evidence = list(dict.fromkeys(evidence_by_entity.get(entity_id, [])))
+            if not evidence:
+                continue
+
+            vocabulary_codes = entity.get("vocabularyCodes", [])
+            if not isinstance(vocabulary_codes, list):
+                continue
+            for vocabulary_code in vocabulary_codes:
+                if not isinstance(vocabulary_code, dict):
+                    continue
+                vocabulary_name = str(vocabulary_code.get("vocabularyName", ""))
+                if vocabulary_name.upper() not in self.ICD10_VOCABULARIES:
+                    continue
+                code = vocabulary_code.get("vocabularyCode")
+                if not isinstance(code, str) or not code.strip():
+                    continue
+                key = (vocabulary_name.upper(), code.strip())
+                if key in seen:
+                    continue
+                seen.add(key)
+                candidates.append(
+                    {
+                        "code_system": "ICD-10-CM",
+                        "code": code.strip(),
+                        "display": str(entity.get("preferredTerm") or ""),
+                        "evidence": evidence,
+                        "review_required": True,
+                    }
+                )
+
+        return {
+            "focus": "diabetes-related foot complication",
+            "code_candidates": candidates,
+            "unavailable_code_systems": [
+                {
+                    "code_system": "CPT",
+                    "reason": "CPT is not provided by the configured Healthcare NLP vocabularies; no procedure code was inferred.",
+                }
+            ],
+            "coding_review_required": True,
+            "notice": (
+                "These are extraction-linked candidates, not confirmed diagnoses or billable coding. "
+                "A qualified clinician/coder must verify the record, laterality, ulcer depth, "
+                "infection status, encounter context, and current code-set rules. "
+                "No code is suggested when the upstream service supplies no linked code."
+            ),
+        }
 
 
 __all__ = ["HealthcareNLPError", "HealthcareNLPService"]
