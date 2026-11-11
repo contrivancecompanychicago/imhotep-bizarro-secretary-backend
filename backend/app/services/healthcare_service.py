@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 from typing import Any
 from urllib.parse import quote
 
@@ -14,6 +15,80 @@ class HealthcareNLPError(RuntimeError):
     def __init__(self, message: str, status_code: int = 502):
         super().__init__(message)
         self.status_code = status_code
+
+
+# These lexical indicators prioritize review only; they are not a diagnostic
+# rule set. Keep the categories ordered for predictable candidate ranking.
+FOOT_SIGNAL_PATTERNS: dict[str, tuple[str, ...]] = {
+    "ulcer_or_wound": (
+        r"ulcer(?:s|ated|ation)?",
+        r"wound(?:s)?",
+        r"foot\s+lesion(?:s)?",
+    ),
+    "infection": (
+        r"infect(?:ion|ed|ious|ive)?",
+        r"cellulitis",
+        r"osteomyelitis",
+        r"abscess(?:es)?",
+    ),
+    "ischemia_or_gangrene": (
+        r"ischemi(?:a|c)",
+        r"gangrene|gangrenous",
+        r"necrosi[sz]|necrotic",
+        r"poor\s+perfusion",
+    ),
+}
+FOOT_CONTEXT_PATTERNS = (
+    r"foot|feet|toe(?:s)?|plantar|podiatr(?:y|ic)",
+    r"lower\s+extremit(?:y|ies)",
+)
+DIABETES_PATTERNS = (r"diabet(?:es|ic)",)
+_NEGATION_PATTERN = re.compile(
+    r"\b(?:no|not|without|denies|denied|negative\s+for|ruled\s+out|absent)\b",
+    re.IGNORECASE,
+)
+
+
+def _active_matches(text: str, patterns: tuple[str, ...]) -> list[str]:
+    """Return matched terms excluding nearby explicit negation phrases."""
+    found: list[str] = []
+    for pattern in patterns:
+        for match in re.finditer(rf"\b(?:{pattern})\b", text, re.IGNORECASE):
+            # Restrict negation detection to the same short phrase. This is a
+            # conservative prioritization heuristic, not clinical NLP.
+            prefix = text[max(0, match.start() - 48) : match.start()]
+            prefix = re.sub(r"[^\w]+", " ", prefix.lower()).strip()
+            recent_words = prefix.split()[-5:]
+            recent = " ".join(recent_words)
+            if _NEGATION_PATTERN.search(recent):
+                continue
+            term = match.group(0).lower()
+            if term not in found:
+                found.append(term)
+    return found
+
+
+def assess_diabetes_foot_signals(text: str) -> dict[str, Any]:
+    """Detect keyword signals to prioritize human review, never diagnose."""
+    diabetes_terms = _active_matches(text, DIABETES_PATTERNS)
+    foot_terms: list[str] = []
+    for pattern in FOOT_CONTEXT_PATTERNS:
+        foot_terms.extend(_active_matches(text, (pattern,)))
+    complication_terms = {
+        category: _active_matches(text, patterns)
+        for category, patterns in FOOT_SIGNAL_PATTERNS.items()
+    }
+    complication_terms = {
+        category: terms for category, terms in complication_terms.items() if terms
+    }
+    eligible = bool(diabetes_terms and foot_terms and complication_terms)
+    return {
+        "diabetes_terms": diabetes_terms,
+        "foot_terms": list(dict.fromkeys(foot_terms)),
+        "complication_terms": complication_terms,
+        "eligible_for_prioritized_candidates": eligible,
+        "method": "keyword screening for review prioritization; not a diagnosis",
+    }
 
 
 class HealthcareNLPService:
@@ -153,66 +228,97 @@ class HealthcareNLPService:
         return {"entities": entities, "relationships": relationships}
 
     def suggest_codes(self, text: str) -> dict[str, Any]:
-        """Surface only ICD-10-CM codes explicitly linked by Healthcare NLP.
-
-        CPT is not among the configured NLP vocabularies and is deliberately
-        reported as unavailable instead of guessed from a narrative.
-        """
-        response = self.analyze_entities(text)
-        mentions = response.get("entityMentions", [])
-        vocabulary_entities = response.get("entities", [])
-        if not isinstance(mentions, list):
-            mentions = []
-        if not isinstance(vocabulary_entities, list):
-            vocabulary_entities = []
-
-        evidence_by_entity: dict[str, list[str]] = {}
-        for mention in mentions:
-            if not isinstance(mention, dict) or mention.get("entityId") is None:
-                continue
-            mention_text = mention.get("text")
-            content = mention_text.get("content") if isinstance(mention_text, dict) else None
-            if isinstance(content, str) and content.strip():
-                evidence_by_entity.setdefault(str(mention["entityId"]), []).append(content.strip())
-
+        """Prioritize directly linked ICD-10-CM candidates for human review."""
+        signals = assess_diabetes_foot_signals(text)
         candidates: list[dict[str, Any]] = []
-        seen: set[tuple[str, str]] = set()
-        for entity in vocabulary_entities:
-            if not isinstance(entity, dict) or entity.get("entityId") is None:
-                continue
-            entity_id = str(entity["entityId"])
-            evidence = list(dict.fromkeys(evidence_by_entity.get(entity_id, [])))
-            if not evidence:
-                continue
 
-            vocabulary_codes = entity.get("vocabularyCodes", [])
-            if not isinstance(vocabulary_codes, list):
-                continue
-            for vocabulary_code in vocabulary_codes:
-                if not isinstance(vocabulary_code, dict):
+        # Do not suggest unrelated or weakly-associated codes if the note lacks
+        # all three contexts: diabetes, foot, and an ulcer/infection/ischemia cue.
+        if signals["eligible_for_prioritized_candidates"]:
+            response = self.analyze_entities(text)
+            mentions = response.get("entityMentions", [])
+            vocabulary_entities = response.get("entities", [])
+            if not isinstance(mentions, list):
+                mentions = []
+            if not isinstance(vocabulary_entities, list):
+                vocabulary_entities = []
+
+            evidence_by_entity: dict[str, list[str]] = {}
+            for mention in mentions:
+                if not isinstance(mention, dict) or mention.get("entityId") is None:
                     continue
-                vocabulary_name = str(vocabulary_code.get("vocabularyName", ""))
-                if vocabulary_name.upper() not in self.ICD10_VOCABULARIES:
+                mention_text = mention.get("text")
+                content = mention_text.get("content") if isinstance(mention_text, dict) else None
+                if isinstance(content, str) and content.strip():
+                    evidence_by_entity.setdefault(str(mention["entityId"]), []).append(content.strip())
+
+            seen: set[tuple[str, str]] = set()
+            priority_order = {
+                "ulcer_or_wound": 0,
+                "infection": 1,
+                "ischemia_or_gangrene": 2,
+            }
+            for entity in vocabulary_entities:
+                if not isinstance(entity, dict) or entity.get("entityId") is None:
                     continue
-                code = vocabulary_code.get("vocabularyCode")
-                if not isinstance(code, str) or not code.strip():
+                entity_id = str(entity["entityId"])
+                evidence = list(dict.fromkeys(evidence_by_entity.get(entity_id, [])))
+                display = str(entity.get("preferredTerm") or "")
+                candidate_text = " ".join([display, *evidence])
+                candidate_signals = {
+                    category: _active_matches(candidate_text, patterns)
+                    for category, patterns in FOOT_SIGNAL_PATTERNS.items()
+                }
+                candidate_signals = {
+                    category: terms
+                    for category, terms in candidate_signals.items()
+                    if terms
+                }
+                if not candidate_signals:
                     continue
-                key = (vocabulary_name.upper(), code.strip())
-                if key in seen:
+
+                vocabulary_codes = entity.get("vocabularyCodes", [])
+                if not isinstance(vocabulary_codes, list):
                     continue
-                seen.add(key)
-                candidates.append(
-                    {
-                        "code_system": "ICD-10-CM",
-                        "code": code.strip(),
-                        "display": str(entity.get("preferredTerm") or ""),
-                        "evidence": evidence,
-                        "review_required": True,
-                    }
+                for vocabulary_code in vocabulary_codes:
+                    if not isinstance(vocabulary_code, dict):
+                        continue
+                    vocabulary_name = str(vocabulary_code.get("vocabularyName", ""))
+                    if vocabulary_name.upper() not in self.ICD10_VOCABULARIES:
+                        continue
+                    code = vocabulary_code.get("vocabularyCode")
+                    if not isinstance(code, str) or not code.strip():
+                        continue
+                    key = (vocabulary_name.upper(), code.strip())
+                    if key in seen:
+                        continue
+                    seen.add(key)
+                    categories = sorted(candidate_signals, key=priority_order.get)
+                    candidates.append(
+                        {
+                            "code_system": "ICD-10-CM",
+                            "code": code.strip(),
+                            "display": display,
+                            "evidence": evidence,
+                            "matched_signals": {
+                                category: candidate_signals[category]
+                                for category in categories
+                            },
+                            "priority": categories[0],
+                            "review_required": True,
+                        }
+                    )
+
+            candidates.sort(
+                key=lambda candidate: (
+                    priority_order.get(candidate["priority"], 99),
+                    candidate["code"],
                 )
+            )
 
         return {
             "focus": "diabetes-related foot complication",
+            "screening": signals,
             "code_candidates": candidates,
             "unavailable_code_systems": [
                 {
@@ -222,12 +328,13 @@ class HealthcareNLPService:
             ],
             "coding_review_required": True,
             "notice": (
-                "These are extraction-linked candidates, not confirmed diagnoses or billable coding. "
-                "A qualified clinician/coder must verify the record, laterality, ulcer depth, "
-                "infection status, encounter context, and current code-set rules. "
-                "No code is suggested when the upstream service supplies no linked code."
+                "Keyword screening only prioritizes review; it does not establish a diabetes-related foot diagnosis. "
+                "Candidates are included only when the upstream service explicitly links a mention to an ICD-10-CM code "
+                "and the linked entity text contains an ulcer/wound, infection, or ischemia/gangrene keyword. "
+                "A qualified clinician/coder must verify the record, laterality, ulcer depth, infection status, "
+                "encounter context, and current code-set rules. No CPT code is inferred."
             ),
         }
 
 
-__all__ = ["HealthcareNLPError", "HealthcareNLPService"]
+__all__ = ["HealthcareNLPError", "HealthcareNLPService", "assess_diabetes_foot_signals"]

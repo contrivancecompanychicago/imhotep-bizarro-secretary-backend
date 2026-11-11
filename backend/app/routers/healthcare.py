@@ -35,7 +35,17 @@ class HealthcareCodeCandidate(BaseModel):
     code: str
     display: str
     evidence: list[str]
+    matched_signals: dict[str, list[str]]
+    priority: str
     review_required: bool
+
+
+class DiabetesFootScreening(BaseModel):
+    diabetes_terms: list[str]
+    foot_terms: list[str]
+    complication_terms: dict[str, list[str]]
+    eligible_for_prioritized_candidates: bool
+    method: str
 
 
 class UnavailableCodeSystem(BaseModel):
@@ -45,6 +55,7 @@ class UnavailableCodeSystem(BaseModel):
 
 class HealthcareCodeSuggestResponse(BaseModel):
     focus: str
+    screening: DiabetesFootScreening
     code_candidates: list[HealthcareCodeCandidate]
     unavailable_code_systems: list[UnavailableCodeSystem]
     coding_review_required: bool
@@ -85,5 +96,5 @@ def suggest_clinical_codes(
     payload: HealthcareAnalyzeRequest,
     current_user: User = Depends(get_current_user),
 ) -> HealthcareCodeSuggestResponse:
-    """Return extraction-linked code candidates for coder review, not diagnoses."""
+    """Return keyword-prioritized, extraction-linked candidates for review."""
     return HealthcareCodeSuggestResponse(**_analyze(payload.text, "suggest_codes"))
