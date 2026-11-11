@@ -12,6 +12,9 @@ class Settings(BaseSettings):
         "https://make-deep-human-families-healthy.erichilarysmithsr.chatgpt.site"
     )
     openai_api_key: str | None = None
+    google_cloud_project: str | None = None
+    google_cloud_location: str = "us-central1"
+    healthcare_api_timeout_seconds: int = 30
 
     class Config:
         env_file = ".env"
