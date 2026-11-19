@@ -8,6 +8,9 @@ version = "0.1.0"
 description = "IMHOTEP Bizarros medical secretary backend and knowledge-graph package for Chicago Type 2 Diabetes care coordination."
 readme = "README.md"
 requires-python = ">=3.11"
+authors = [
+  { name = "Eric Hilary Smith", email = "erichilarysmithsr@gmail.com" },
+]
 dependencies = [
   "fastapi==0.115.0",
   "uvicorn==0.30.6",
